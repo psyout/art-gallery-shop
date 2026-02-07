@@ -1,0 +1,131 @@
+'use client';
+
+import { useState } from 'react';
+
+export default function ContactForm() {
+	const [formData, setFormData] = useState({
+		name: '',
+		email: '',
+		message: '',
+	});
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [formStatus, setFormStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
+		type: 'idle',
+		message: '',
+	});
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (isSubmitting) return;
+
+		const trimmedName = formData.name.trim();
+		const trimmedEmail = formData.email.trim();
+		const trimmedMessage = formData.message.trim();
+		const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+		if (!trimmedName || !trimmedEmail || !trimmedMessage) {
+			setFormStatus({ type: 'error', message: 'Please complete all fields before sending.' });
+			return;
+		}
+		if (!emailPattern.test(trimmedEmail)) {
+			setFormStatus({ type: 'error', message: 'Please enter a valid email address.' });
+			return;
+		}
+
+		setIsSubmitting(true);
+		setFormStatus({ type: 'idle', message: '' });
+
+		try {
+			const response = await fetch('/api/contact', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ name: trimmedName, email: trimmedEmail, message: trimmedMessage }),
+			});
+
+			let data: { ok?: boolean; error?: string } | null = null;
+			try {
+				data = (await response.json()) as { ok?: boolean; error?: string };
+			} catch {
+				data = null;
+			}
+
+			if (!response.ok || data?.ok === false) {
+				setFormStatus({ type: 'error', message: data?.error ?? 'Something went wrong. Please try again.' });
+				return;
+			}
+
+			setFormStatus({ type: 'success', message: 'Thanks for reaching out. We will reply as soon as possible.' });
+			setFormData({ name: '', email: '', message: '' });
+		} catch {
+			setFormStatus({ type: 'error', message: 'Unable to send your message right now.' });
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	return (
+		<div className='bg-olive-branch/20 backdrop-blur-md rounded-xl p-6 shadow-lg ui-border'>
+			<h3 className='text-2xl font-bold text-warm-clay-800 mb-6'>Send us a Message</h3>
+			<form
+				onSubmit={handleSubmit}
+				className='space-y-6'>
+				<div>
+					<label
+						htmlFor='name'
+						className='block text-md font-medium mb-2 text-warm-clay-800'>
+						Name
+					</label>
+					<input
+						type='text'
+						id='name'
+						value={formData.name}
+						onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+						className='w-full bg-white border border-black/10 rounded px-4 py-2 text-warm-clay-800 focus:outline-none focus:border-warm-clay focus:ring-2 focus:ring-warm-clay'
+						required
+					/>
+				</div>
+				<div>
+					<label
+						htmlFor='email'
+						className='block text-md font-medium mb-2 text-warm-clay-800'>
+						Email
+					</label>
+					<input
+						type='email'
+						id='email'
+						value={formData.email}
+						onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+						className='w-full bg-white border border-black/10 rounded px-4 py-2 text-warm-clay-800 focus:outline-none focus:border-warm-clay focus:ring-2 focus:ring-warm-clay'
+						required
+					/>
+				</div>
+				<div>
+					<label
+						htmlFor='message'
+						className='block text-md font-medium mb-2 text-warm-clay-800'>
+						Message
+					</label>
+					<textarea
+						id='message'
+						value={formData.message}
+						onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+						rows={6}
+						className='w-full bg-white border border-black/10 rounded px-4 py-2 text-warm-clay-800 focus:outline-none focus:border-warm-clay focus:ring-2 focus:ring-warm-clay resize-none'
+						required
+					/>
+				</div>
+				{formStatus.type !== 'idle' && (
+					<div className={`rounded-lg px-4 py-3 text-sm ${formStatus.type === 'success' ? 'bg-terracotta-200/70 text-warm-clay-800' : 'bg-rose-100 text-rose-700'}`}>
+						{formStatus.message}
+					</div>
+				)}
+				<button
+					type='submit'
+					disabled={isSubmitting}
+					className='w-full bg-soft-taupe-400 hover:bg-soft-taupe-500 text-warm-clay-900 font-semibold py-3 px-6 rounded transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-md'>
+					{isSubmitting ? 'Sending...' : 'Send Message'}
+				</button>
+			</form>
+		</div>
+	);
+}

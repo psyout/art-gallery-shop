@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	--background: #f8e8d5;
+	--foreground: #3d3229;
+	--ui-border-color: transparent;
+	--ui-border-width: 0px;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	color: var(--foreground);
+	background: var(--background);
+}
+
+p {
+	line-height: 1.4;
+}
+
+@layer base {
+	p {
+		line-height: 1.4;
+	}
+}
+
+@layer utilities {
+	.text-balance {
+		text-wrap: balance;
+	}
+}
+
+@layer components {
+	.ui-border {
+		border: var(--ui-border-width) solid var(--ui-border-color);
+	}
+
+	.ui-border-t {
+		border-top: var(--ui-border-width) solid var(--ui-border-color);
+	}
+}
