@@ -52,7 +52,7 @@ export default function HeroClient({ slides }: HeroClientProps) {
 				<div className='mb-3 lg:mb-6'>
 					<h1 className='text-4xl sm:text-5xl lg:text-6xl font-bold text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.8)]'>FrameYourself</h1>
 				</div>
-				<p className='text-white text-lg sm:text-xl lg:text-2xl max-w-[80%] min-h-[100px] sm:min-h-[120px] lg:min-h-[140px] sm:max-w-lg lg:max-w-2xl mx-auto drop-shadow-[0_2px_10px_rgba(255,255,255,0.5)]'>
+				<p className='text-white text-pretty text-lg sm:text-xl lg:text-2xl max-w-[80%] min-h-[100px] sm:min-h-[120px] lg:min-h-[140px] sm:max-w-lg lg:max-w-2xl mx-auto drop-shadow-[0_2px_10px_rgba(255,255,255,0.5)]'>
 					{currentSlide.description}
 				</p>
 			</div>

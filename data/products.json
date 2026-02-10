@@ -21,7 +21,7 @@
 		"icons": ["PenTool", "Award", "Gem"],
 		"price": 129.99,
 		"stock": 8,
-		"image": "https://picsum.photos/seed/abstract3/600/600",
+		"image": "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&h=600&fit=crop",
 		"category": "Abstract",
 		"status": "published"
 	},
@@ -47,21 +47,21 @@
 		"icons": ["Shield", "Sun", "Ruler"],
 		"price": 99.99,
 		"stock": 12,
-		"image": "https://picsum.photos/seed/mountain1/600/600",
+		"image": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=600&fit=crop",
 		"category": "Landscape",
 		"status": "published"
 	},
 	{
 		"id": "5",
-		"slug": "urban-lines",
-		"name": "Urban Lines",
-		"description": "Minimalist cityscape focusing on architecture and light. Perfect for offices and lofts.",
+		"slug": "rural-lines",
+		"name": "Rural Lines",
+		"description": "Sweeping rural landscape with golden fields and gentle horizons. Perfect for living spaces and offices.",
 		"details": "Digital fine art print. Matte finish. Black or white frame.",
 		"icons": ["FileImage", "Layers", "Gem"],
 		"price": 79.99,
 		"stock": 20,
-		"image": "https://picsum.photos/seed/urban1/600/600",
-		"category": "Abstract",
+		"image": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&h=600&fit=crop",
+		"category": "Landscape",
 		"status": "published"
 	},
 	{
@@ -73,7 +73,7 @@
 		"icons": ["Brush", "Shield", "Palette"],
 		"price": 69.99,
 		"stock": 18,
-		"image": "https://picsum.photos/seed/botanical1/600/600",
+		"image": "https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=600&h=600&fit=crop",
 		"category": "Botanical",
 		"status": "published"
 	},
