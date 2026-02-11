@@ -258,18 +258,5 @@
 		"image": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=600&h=600&fit=crop",
 		"category": "Abstract",
 		"status": "published"
-	},
-	{
-		"id": "21",
-		"slug": "autumn-path",
-		"name": "Autumn Path",
-		"description": "Tree-lined path with golden autumn leaves. Warm and inviting seasonal beauty.",
-		"details": "Archival print on premium paper. Multiple sizes. Warm wood frame.",
-		"icons": ["Sun", "Layers", "Palette"],
-		"price": 94.99,
-		"stock": 15,
-		"image": "https://images.unsplash.com/photo-1476820865390-c52aeebb9891?w=600&h=600&fit=crop",
-		"category": "Landscape",
-		"status": "published"
 	}
 ]
