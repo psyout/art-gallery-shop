@@ -79,7 +79,7 @@ export default function HeroClient({ slides }: HeroClientProps) {
 				className='absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-soft-taupe-400 hover:bg-soft-taupe-500 rounded-full p-3 transition-all duration-300 group shadow-md'
 				aria-label='Next slide'>
 				<svg
-					className='w-6 h-6 text-whiteµX group-hover:scale-110 transition-transform'
+					className='w-6 h-6 text-white group-hover:scale-110 transition-transform'
 					fill='none'
 					stroke='currentColor'
 					viewBox='0 0 24 24'>

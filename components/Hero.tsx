@@ -2,11 +2,11 @@ import HeroClient from './HeroClient';
 
 const slides = [
 	{
-		backgroundImage: 'https://picsum.photos/seed/gallery-hero-1/1920/1080',
+		backgroundImage: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=1920&h=1080&fit=crop',
 		description: 'Curated art prints and framed pieces for your home. Landscape, abstract, and portrait — each piece chosen for quality and presence.',
 	},
 	{
-		backgroundImage: 'https://picsum.photos/seed/gallery-hero-3/1920/1080',
+		backgroundImage: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1920&h=1080&fit=crop',
 		description: 'Art for every wall. Thoughtful framing options, secure checkout, and careful packaging so your print arrives ready to hang.',
 	},
 ];
