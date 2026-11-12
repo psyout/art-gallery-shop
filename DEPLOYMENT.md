@@ -11,6 +11,26 @@
 
 ## Quick Deploy (After Making Changes)
 
+### Recommended: GitHub Actions
+
+Pushing to `main` automatically runs `.github/workflows/deploy-vps.yml`. The workflow builds on GitHub, uploads a staged release, restarts PM2, verifies `/`, `/welcome`, CSS, and the welcome-page logo, and rolls back if verification fails.
+
+Configure these GitHub Actions repository secrets before the first run:
+
+| Secret | Value |
+| --- | --- |
+| `VPS_HOST` | `82.221.139.21` |
+| `VPS_USER` | `root` |
+| `VPS_PATH` | `/var/www/art-gallery-shop` |
+| `PM2_APP` | `art-gallery` |
+| `VPS_SSH_PORT` | SSH port, normally `22` |
+| `VPS_SSH_PRIVATE_KEY_B64` | Base64-encoded private deployment key |
+| `VPS_SSH_KNOWN_HOSTS` | Complete pinned `known_hosts` line for the VPS |
+
+The key and host-key secrets can be produced using the same setup used by the Pure Tide repository. The workflow can also be started manually from GitHub Actions using **Run workflow**.
+
+### Manual fallback
+
 ### 1. Upload Changes (from your Mac)
 
 ```bash

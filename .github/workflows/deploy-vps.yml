@@ -1,0 +1,272 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_PATH: ${{ secrets.VPS_PATH }}
+      PM2_APP: ${{ secrets.PM2_APP }}
+      VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+      VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for var in VPS_HOST VPS_USER VPS_PATH PM2_APP VPS_SSH_KNOWN_HOSTS; do
+            if [[ -z "${!var:-}" ]]; then
+              echo "Missing required secret: ${var}"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Install rsync
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: NODE_OPTIONS="--max-old-space-size=4096" npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Verify build output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .next/BUILD_ID
+          test -d .next/standalone
+          test -d .next/static/css
+          test -f public/pure-tide-logo-white.svg
+
+      - name: Write deploy key
+        shell: bash
+        env:
+          VPS_SSH_PRIVATE_KEY_B64: ${{ secrets.VPS_SSH_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${VPS_SSH_PRIVATE_KEY_B64:-}" ]]; then
+            echo "Missing required secret: VPS_SSH_PRIVATE_KEY_B64"
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          keyfile=~/.ssh/deploy_key
+          printf '%s' "$VPS_SSH_PRIVATE_KEY_B64" | base64 -d > "$keyfile"
+          chmod 600 "$keyfile"
+          if ! head -n 1 "$keyfile" | grep -q "OPENSSH PRIVATE KEY"; then
+            echo "VPS_SSH_PRIVATE_KEY_B64 is not a base64-encoded OpenSSH private key."
+            exit 1
+          fi
+
+      - name: Install pinned VPS host key
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT="${VPS_SSH_PORT:-22}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          LOOKUP_HOST="$VPS_HOST"
+          if [[ "$PORT" != "22" ]]; then
+            LOOKUP_HOST="[$VPS_HOST]:$PORT"
+          fi
+          if ! ssh-keygen -F "$LOOKUP_HOST" -f ~/.ssh/known_hosts >/dev/null && ! ssh-keygen -F "$VPS_HOST" -f ~/.ssh/known_hosts >/dev/null; then
+            echo "VPS_SSH_KNOWN_HOSTS has no entry for ${LOOKUP_HOST}."
+            echo "Generate it with: ssh-keyscan -p ${PORT} -t ed25519 ${VPS_HOST}"
+            exit 1
+          fi
+
+      - name: Establish persistent SSH connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT="${VPS_SSH_PORT:-22}"
+          cat > ~/.ssh/config <<EOF
+          Host frameyourself-deploy
+            HostName ${VPS_HOST}
+            User ${VPS_USER}
+            Port ${PORT}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            BatchMode yes
+            ConnectTimeout 30
+            StrictHostKeyChecking yes
+            ServerAliveInterval 15
+            ServerAliveCountMax 4
+            ControlMaster auto
+            ControlPersist 10m
+            ControlPath ~/.ssh/frameyourself-%C
+          EOF
+          chmod 600 ~/.ssh/config
+
+          for attempt in $(seq 1 12); do
+            echo "Opening deployment SSH connection (attempt ${attempt}/12)..."
+            if ssh -MNf frameyourself-deploy; then
+              ssh -O check frameyourself-deploy
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+
+          echo "Unable to establish the deployment SSH connection."
+          exit 1
+
+      - name: Prepare staging directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh frameyourself-deploy "
+            set -euo pipefail
+            test -d \"${VPS_PATH}\"
+            command -v node
+            command -v pm2
+            mkdir -p \"${VPS_PATH}/.deploy/next/static\" \"${VPS_PATH}/.deploy/public\"
+            cd \"${VPS_PATH}\"
+            if [ -d .next/static ]; then
+              rsync -a .next/static/ .deploy/next/static/
+            fi
+          "
+
+      - name: Upload staged release
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -az -e ssh .next/static/ "frameyourself-deploy:${VPS_PATH}/.deploy/next/static/"
+          rsync -az --delete --exclude='static' -e ssh .next/ "frameyourself-deploy:${VPS_PATH}/.deploy/next/"
+          rsync -az --delete -e ssh public/ "frameyourself-deploy:${VPS_PATH}/.deploy/public/"
+          rsync -az -e ssh package.json package-lock.json "frameyourself-deploy:${VPS_PATH}/.deploy/"
+
+      - name: Activate release and verify production
+        shell: bash
+        run: |
+          set -euo pipefail
+          COMMIT_SHA="${GITHUB_SHA}"
+          ssh frameyourself-deploy "
+            set -euo pipefail
+            cd \"${VPS_PATH}\"
+            echo \"Deploying commit ${COMMIT_SHA}\"
+            test -f .deploy/next/BUILD_ID
+            test -d .deploy/next/static/css
+            test -f .deploy/public/pure-tide-logo-white.svg
+
+            CSS_COUNT=\$(find .deploy/next/static/css -type f -name '*.css' | wc -l | tr -d ' ')
+            if [ \"\${CSS_COUNT}\" -lt 1 ]; then
+              echo 'Deployment aborted: staged build contains no CSS.'
+              exit 1
+            fi
+
+            rm -rf .deploy/previous-next .deploy/previous-public
+            rm -f .deploy/previous-package.json .deploy/previous-package-lock.json
+            if [ -d .next ]; then mv .next .deploy/previous-next; fi
+            if [ -d public ]; then mv public .deploy/previous-public; fi
+            if [ -f package.json ]; then mv package.json .deploy/previous-package.json; fi
+            if [ -f package-lock.json ]; then mv package-lock.json .deploy/previous-package-lock.json; fi
+
+            mv .deploy/next .next
+            mv .deploy/public public
+            mv .deploy/package.json package.json
+            mv .deploy/package-lock.json package-lock.json
+
+            rm -rf .next/standalone/.next/static .next/standalone/public
+            mkdir -p .next/standalone/.next
+            cp -R .next/static .next/standalone/.next/static
+            cp -R public .next/standalone/public
+
+            rollback() {
+              echo 'Rolling back to previous release...'
+              pm2 stop \"${PM2_APP}\" || true
+              rm -rf .next public
+              rm -f package.json package-lock.json
+              if [ -d .deploy/previous-next ]; then mv .deploy/previous-next .next; fi
+              if [ -d .deploy/previous-public ]; then mv .deploy/previous-public public; fi
+              if [ -f .deploy/previous-package.json ]; then mv .deploy/previous-package.json package.json; fi
+              if [ -f .deploy/previous-package-lock.json ]; then mv .deploy/previous-package-lock.json package-lock.json; fi
+              PORT=3001 HOSTNAME=0.0.0.0 pm2 restart \"${PM2_APP}\" --update-env || true
+              echo 'Rollback complete.'
+            }
+
+            PORT=3001 HOSTNAME=0.0.0.0 pm2 restart \"${PM2_APP}\" --update-env
+
+            HEALTHY=0
+            for i in \$(seq 1 30); do
+              if curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3001/ >/dev/null && curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3001/welcome >/dev/null; then
+                HEALTHY=1
+                break
+              fi
+              sleep 2
+            done
+
+            if [ \"\${HEALTHY}\" -ne 1 ]; then
+              echo 'Health check failed.'
+              pm2 logs \"${PM2_APP}\" --lines 80 --nostream || true
+              rollback
+              exit 1
+            fi
+
+            HTML=\$(curl --fail --silent --show-error --max-time 5 http://127.0.0.1:3001/)
+            CSS_PATHS=\$(printf '%s' \"\${HTML}\" | grep -oE '/_next/static/css/[A-Za-z0-9._-]+\\.css' | sort -u)
+            if [ -z \"\${CSS_PATHS}\" ]; then
+              echo 'Health check failed: homepage references no CSS.'
+              rollback
+              exit 1
+            fi
+
+            for css_path in \${CSS_PATHS}; do
+              RESULT=\$(curl --silent --show-error --max-time 5 -o /dev/null -w '%{http_code} %{content_type}' \"http://127.0.0.1:3001\${css_path}\")
+              STATUS=\"\${RESULT%% *}\"
+              CTYPE=\"\${RESULT#* }\"
+              echo \"  \${css_path} -> \${STATUS} (\${CTYPE})\"
+              if [ \"\${STATUS}\" != '200' ] || [[ \"\${CTYPE}\" != text/css* ]]; then
+                echo 'Health check failed: CSS asset unavailable.'
+                rollback
+                exit 1
+              fi
+            done
+
+            IMAGE_RESULT=\$(curl --silent --show-error --max-time 5 -o /dev/null -w '%{http_code} %{content_type}' http://127.0.0.1:3001/pure-tide-logo-white.svg)
+            IMAGE_STATUS=\"\${IMAGE_RESULT%% *}\"
+            IMAGE_CTYPE=\"\${IMAGE_RESULT#* }\"
+            if [ \"\${IMAGE_STATUS}\" != '200' ] || [[ \"\${IMAGE_CTYPE}\" != image/* ]]; then
+              echo 'Health check failed: welcome-page logo unavailable.'
+              rollback
+              exit 1
+            fi
+
+            pm2 save
+            echo \"Deployment verified for commit ${COMMIT_SHA}.\"
+          "
+
+      - name: Close persistent SSH connection
+        if: always()
+        shell: bash
+        run: ssh -O exit frameyourself-deploy 2>/dev/null || true
