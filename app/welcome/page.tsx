@@ -61,10 +61,10 @@ export default function WelcomePage() {
 								Pure Tide is a Canadian wellness destination shaped around clarity, thoughtful choices, and a more considered online experience.
 							</p>
 							<a
-								href='https://puretide.ca'
+								href='https://puretide.ca/#products'
 								rel='noreferrer'
 								className='group mt-9 inline-flex min-h-14 items-center justify-center rounded-sm bg-[#f0f0f0] px-9 text-sm font-bold uppercase tracking-[0.16em] text-[#082f36] transition-colors duration-200 hover:bg-[#8ed0e5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white'>
-								Continue to Pure Tide
+								Shop The Sale
 								<ArrowRight
 									className='ml-3 h-5 w-5 transition-transform duration-300 motion-safe:group-hover:translate-x-1.5 motion-safe:group-focus-visible:translate-x-1.5'
 									strokeWidth={2}
