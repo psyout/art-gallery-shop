@@ -51,7 +51,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        # The lockfile is maintained on macOS, while the runner resolves a
+        # different optional dependency graph on Linux. npm install safely
+        # reconciles those platform-specific entries before the build.
+        run: npm install --no-audit --no-fund
 
       - name: Build
         run: NODE_OPTIONS="--max-old-space-size=4096" npm run build
