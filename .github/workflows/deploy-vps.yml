@@ -205,6 +205,19 @@ jobs:
             cp -R .next/static .next/standalone/.next/static
             cp -R public .next/standalone/public
 
+            start_or_restart_app() {
+              if pm2 describe \"${PM2_APP}\" >/dev/null 2>&1; then
+                echo 'Restarting existing PM2 process...'
+                PORT=3001 HOSTNAME=0.0.0.0 pm2 restart \"${PM2_APP}\" --update-env
+              else
+                echo 'PM2 process is missing; creating it from the standalone server...'
+                PORT=3001 HOSTNAME=0.0.0.0 pm2 start .next/standalone/server.js \
+                  --name \"${PM2_APP}\" \
+                  --cwd \"${VPS_PATH}\" \
+                  --update-env
+              fi
+            }
+
             rollback() {
               echo 'Rolling back to previous release...'
               pm2 stop \"${PM2_APP}\" || true
@@ -214,11 +227,19 @@ jobs:
               if [ -d .deploy/previous-public ]; then mv .deploy/previous-public public; fi
               if [ -f .deploy/previous-package.json ]; then mv .deploy/previous-package.json package.json; fi
               if [ -f .deploy/previous-package-lock.json ]; then mv .deploy/previous-package-lock.json package-lock.json; fi
-              PORT=3001 HOSTNAME=0.0.0.0 pm2 restart \"${PM2_APP}\" --update-env || true
+              if ! start_or_restart_app; then
+                echo 'Rollback restored the files, but PM2 could not start the previous release.'
+                pm2 logs \"${PM2_APP}\" --lines 80 --nostream || true
+                return 1
+              fi
               echo 'Rollback complete.'
             }
 
-            PORT=3001 HOSTNAME=0.0.0.0 pm2 restart \"${PM2_APP}\" --update-env
+            if ! start_or_restart_app; then
+              echo 'PM2 activation failed; restoring the previous release.'
+              rollback || true
+              exit 1
+            fi
 
             HEALTHY=0
             for i in \$(seq 1 30); do
